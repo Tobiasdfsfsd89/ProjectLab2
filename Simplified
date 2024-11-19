@@ -1,0 +1,150 @@
+import asyncio
+import adafruit_dht
+from adafruit_motorkit import MotorKit
+from adafruit_motor import stepper
+import board
+import RPi.GPIO as GPIO
+import tkinter as tk
+import time
+
+# Pin and sensor setup
+relayPin1 = 5
+relayPin2 = 6
+sensor1 = adafruit_dht.DHT22(board.D20)
+sensor2 = adafruit_dht.DHT22(board.D21)
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(relayPin1, GPIO.OUT)
+GPIO.setup(relayPin2, GPIO.OUT)
+
+# MotorKit setup
+kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+
+# Global variables
+temperature_f1 = None
+humidity1 = None
+temperature_f2 = None
+humidity2 = None
+preferred_temp = 72  # Default preferred temperature
+
+
+async def read_sensors():
+    """Asynchronously read temperature and humidity from sensors."""
+    global temperature_f1, humidity1, temperature_f2, humidity2
+    while True:
+        try:
+            temperature_f1 = sensor1.temperature * (9 / 5) + 32
+            humidity1 = sensor1.humidity
+            temperature_f2 = sensor2.temperature * (9 / 5) + 32
+            humidity2 = sensor2.humidity
+        except RuntimeError as error:
+            print(f"Sensor error: {error.args[0]}")
+        await asyncio.sleep(2)
+
+
+async def cooling1():
+    """Control Room 1 cooling."""
+    global preferred_temp
+    while True:
+        if temperature_f1 and preferred_temp:
+            cooling_diff = temperature_f1 - preferred_temp
+            if cooling_diff > 0:
+                GPIO.output(relayPin1, GPIO.HIGH)  # Turn on fan
+                print(f"Room 1 Cooling ON: {cooling_diff:.1f}°F above preferred")
+                kit1.motor4.throttle = 1.0  # Simulate cooling
+            else:
+                GPIO.output(relayPin1, GPIO.LOW)  # Turn off fan
+                kit1.motor4.throttle = 0.0
+        await asyncio.sleep(2)
+
+
+async def heating2():
+    """Control Room 2 heating."""
+    global preferred_temp
+    while True:
+        if temperature_f2 and preferred_temp:
+            heating_diff = preferred_temp - temperature_f2
+            if heating_diff > 0:
+                GPIO.output(relayPin2, GPIO.HIGH)  # Turn on fan
+                print(f"Room 2 Heating ON: {heating_diff:.1f}°F below preferred")
+                kit2.motor3.throttle = 1.0  # Simulate heating
+            else:
+                GPIO.output(relayPin2, GPIO.LOW)  # Turn off fan
+                kit2.motor3.throttle = 0.0
+        await asyncio.sleep(2)
+
+
+async def run_gui():
+    """Run the HVAC GUI."""
+    global preferred_temp
+    root = tk.Tk()
+    root.title("HVAC System")
+    root.geometry("500x500")
+
+    def update_temp_display():
+        """Update temperature and humidity display."""
+        temp1_label.config(text=f"Room 1 Temp: {temperature_f1:.1f}°F" if temperature_f1 else "N/A")
+        hum1_label.config(text=f"Room 1 Humidity: {humidity1:.1f}%" if humidity1 else "N/A")
+        temp2_label.config(text=f"Room 2 Temp: {temperature_f2:.1f}°F" if temperature_f2 else "N/A")
+        hum2_label.config(text=f"Room 2 Humidity: {humidity2:.1f}%" if humidity2 else "N/A")
+        root.after(2000, update_temp_display)
+
+    def set_temp():
+        """Set preferred temperature."""
+        try:
+            new_temp = float(temp_entry.get())
+            if 0 <= new_temp <= 125:
+                global preferred_temp
+                preferred_temp = new_temp
+                print(f"Preferred Temperature Set: {preferred_temp}°F")
+            else:
+                print("Invalid temperature. Enter a value between 0 and 125°F.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    # Room 1 Display
+    room1_label = tk.Label(root, text="Room 1", font=("Sans Serif", 14))
+    room1_label.pack(pady=10)
+    temp1_label = tk.Label(root, text="Room 1 Temp: N/A", font=("Sans Serif", 12))
+    temp1_label.pack()
+    hum1_label = tk.Label(root, text="Room 1 Humidity: N/A", font=("Sans Serif", 12))
+    hum1_label.pack()
+
+    # Room 2 Display
+    room2_label = tk.Label(root, text="Room 2", font=("Sans Serif", 14))
+    room2_label.pack(pady=10)
+    temp2_label = tk.Label(root, text="Room 2 Temp: N/A", font=("Sans Serif", 12))
+    temp2_label.pack()
+    hum2_label = tk.Label(root, text="Room 2 Humidity: N/A", font=("Sans Serif", 12))
+    hum2_label.pack()
+
+    # Preferred Temperature Setting
+    temp_label = tk.Label(root, text="Set Preferred Temperature (°F):", font=("Sans Serif", 12))
+    temp_label.pack(pady=10)
+    temp_entry = tk.Entry(root, font=("Sans Serif", 12))
+    temp_entry.pack(pady=5)
+    temp_button = tk.Button(root, text="Set Temperature", command=set_temp)
+    temp_button.pack(pady=10)
+
+    update_temp_display()
+    root.mainloop()
+
+
+async def main():
+    """Main coroutine to run all tasks."""
+    await asyncio.gather(
+        read_sensors(),
+        cooling1(),
+        heating2(),
+        run_gui(),
+    )
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Exiting program...")
+    finally:
+        GPIO.cleanup()
