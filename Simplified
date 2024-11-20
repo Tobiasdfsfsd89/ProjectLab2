@@ -192,7 +192,7 @@ async def Heating2():
                     for i in range(steps_to_takeH):
                         kit1.stepper1.onestep(direction=stepper.BACKWARD,style=stepper.SINGLE)
                         time.sleep(0.01)
-                    heatingSteps[I + 1] = heatingSteps[i]
+                    heatingSteps[i + 1] = heatingSteps[i]
                     
                 if abs(temperature_f2 - temp2) <= 1:
                     break
