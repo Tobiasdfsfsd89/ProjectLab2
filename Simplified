@@ -81,7 +81,6 @@ async def run_gui():
             u_inp = pref_temp_text.get("1.0", tk.END).strip()
             if not u_inp.isdigit():
                 print("Invalid input. Please enter a number.")
-                
             temp = float(u_inp)
             while(temp):     
                 if temp < 0 or temp > 125:
@@ -93,12 +92,14 @@ async def run_gui():
                     return preferred_temp
             
         def plusfive():
+            global preferred_temp
             preferred_temp = store_temp()
             value = preferred_temp + 5
             pref_temp_text.delete("1.0", tk.END)
             pref_temp_text.insert(tk.END, str(value))
                 
         def minusfive():
+            global preferred_temp
             preferred_temp = store_temp()
             value = preferred_temp - 5
             pref_temp_text.delete("1.0", tk.END)
@@ -133,26 +134,25 @@ async def run_gui():
         
         pref_temp_decr = tk.Button(room_frame, text = "- ", font=('Sans serif', 12), bg = "white", command = minusfive)
         pref_temp_decr.pack(side='top', padx=10)
+
+        room_data = {
+            "Room 1": (temperature_f1, humidity1),
+            "Room 2": (temperature_f2, humidity2),
+        }
         
-        if room_name == "Room 1":   
+        def update_temp_display():
+        if room_name in room_data:
+            temperature, humidity = room_data[room_name]
             textbox_tem.delete("1.0", tk.END)
             textbox_hum.delete("1.0", tk.END)
-            
-            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f1))
-            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity1))
-            
-        elif room_name == "Room 2":
-            textbox_tem.delete("1.0", tk.END)
-            textbox_hum.delete("1.0", tk.END)
-            
-            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f2))
-            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity2))
+            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature))
+            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity))
+        
+        root.after(2000, update_temp_display)
             
         sure = tk.Button(room_frame, text = "Sure", font=('Sans serif', 12), bg = "white", command = store_temp)
         sure.pack(padx=10, pady= 10)
         
-        # Schedule the next update after 2 seconds (2000 milliseconds)
-        root.after(2000, textbox_tem, textbox_hum)
 
         button3 = tk.Button(room_frame, text = "Back", font=('Sans serif', 12), command = lambda:go_back(room_frame))
         button3.pack(padx=0, pady=10)
@@ -161,7 +161,6 @@ async def run_gui():
 
 #Room 1 Asynced Motor Control Function
 async def cooling1():
-    global preferred_temp
     temp1 = preferred_temp
     if temp1 is not None:
         coolingIn1 = (temperature_f1 - temp1)
@@ -177,26 +176,23 @@ async def cooling1():
         kit1.motor4.throttle = 0.0
 
 #Room 2 Asynced Motor Control Function
-async def Heating2():
-    global preferred_temp
-    
+async def Heating2():    
     temp2 = preferred_temp
     if temp2 is not None:
         heating = (temp2 - temperature_f2)
         heatingSteps = [200 * (1 / (temperature_f2 - temp2)), 0]
-        steps_to_takeH = heatingSteps[0] - heatingSteps[1]
-        
+        steps_to_takeH = heatingSteps[0] - heatingSteps[1]        
         while (True):
             if(heating < 0):   
                 print("Heating")
                 kit2.motor4.throttle = 0.0
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
-                if (steps_to_take != 0):
+                if (steps_to_takeH != 0):
                     for i in range(steps_to_takeH):
                         kit1.stepper1.onestep(direction=stepper.BACKWARD,style=stepper.SINGLE)
                         time.sleep(0.01)
-                    heatingSteps[1] = heatingSteps[0]
+                    heatingSteps[I + 1] = heatingSteps[i]
                     
                 if abs(temperature_f2 - temp2) <= 1:
                     break
