@@ -12,3 +12,11 @@ Traceback (most recent call last):
   File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 194, in Heating2
     for i in range(steps_to_takeH):
 TypeError: 'float' object cannot be interpreted as an integer
+invalid command name "548622970176update_temp_display"
+    while executing
+"548622970176update_temp_display"
+    ("after" script)
+invalid command name "548622974208update_temp_display"
+    while executing
+"548622974208update_temp_display"
+    ("after" script)
