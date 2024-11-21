@@ -1,0 +1,99 @@
+import asyncio
+import threading
+import adafruit_dht
+from adafruit_motorkit import MotorKit
+import board
+import RPi.GPIO as GPIO
+import tkinter as tk
+
+# Sensor and motor initialization
+sensor1 = adafruit_dht.DHT22(board.D19)
+sensor2 = adafruit_dht.DHT22(board.D26)
+kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+
+# Shared data
+room1_temp = room1_humidity = 0.0
+room2_temp = room2_humidity = 0.0
+room1_preferred_temp = None
+room2_preferred_temp = None
+lock = threading.Lock()  # Ensure thread safety
+
+def start_gui():
+    """Run the GUI application."""
+    root = tk.Tk()
+    root.geometry("500x500")
+    root.title("Group 4 HVAC System")
+
+    # Same GUI implementation as in your original code, omitted for brevity
+    # Ensure GUI updates use `after()` to periodically refresh sensor data
+
+    root.mainloop()
+
+async def update_sensors():
+    """Update sensor readings."""
+    global room1_temp, room1_humidity, room2_temp, room2_humidity
+    while True:
+        try:
+            with lock:  # Ensure thread safety
+                room1_temp = sensor1.temperature * 9 / 5 + 32
+                room1_humidity = sensor1.humidity
+
+                room2_temp = sensor2.temperature * 9 / 5 + 32
+                room2_humidity = sensor2.humidity
+        except RuntimeError as error:
+            print(f"Sensor Error: {error.args[0]}")
+        await asyncio.sleep(2.0)
+
+async def cooling_room1():
+    """Cool Room 1."""
+    while True:
+        with lock:
+            if room1_preferred_temp is not None and room1_temp > room1_preferred_temp:
+                print("Cooling Room 1")
+                kit1.motor4.throttle = 1.0
+            else:
+                kit1.motor4.throttle = 0.0
+        await asyncio.sleep(1.0)
+
+async def heating_room2():
+    """Heat Room 2."""
+    while True:
+        with lock:
+            if room2_preferred_temp is not None and room2_temp < room2_preferred_temp:
+                print("Heating Room 2")
+                kit2.motor3.throttle = 1.0
+            else:
+                kit2.motor3.throttle = 0.0
+        await asyncio.sleep(1.0)
+
+def run_asyncio_loop():
+    """Run the asyncio event loop in a separate thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(asyncio.gather(
+        update_sensors(),
+        cooling_room1(),
+        heating_room2()
+    ))
+
+if __name__ == "__main__":
+    try:
+        # Start GUI in the main thread
+        gui_thread = threading.Thread(target=start_gui, daemon=True)
+        gui_thread.start()
+
+        # Run asyncio tasks in another thread
+        asyncio_thread = threading.Thread(target=run_asyncio_loop, daemon=True)
+        asyncio_thread.start()
+
+        # Wait for threads to finish
+        gui_thread.join()
+        asyncio_thread.join()
+
+    except KeyboardInterrupt:
+        print("Program terminated.")
+    finally:
+        sensor1.exit()
+        sensor2.exit()
+        GPIO.cleanup()
