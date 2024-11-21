@@ -20,3 +20,16 @@ invalid command name "548622974208update_temp_display"
     while executing
 "548622974208update_temp_display"
     ("after" script)
+
+async def update_sensors():
+    global temperature_f1, humidity1, temperature_f2, humidity2
+    while True:
+        try:
+            temperature_f1 = sensor1.temperature * (9 / 5) + 32
+            humidity1 = sensor1.humidity
+            temperature_f2 = sensor2.temperature * (9 / 5) + 32
+            humidity2 = sensor2.humidity
+        except RuntimeError as error:
+            print(f"Sensor error: {error.args[0]}")
+        await asyncio.sleep(3.0)
+
