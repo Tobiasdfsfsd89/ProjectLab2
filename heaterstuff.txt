@@ -155,9 +155,8 @@ async def run_gui():
                 textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature))
                 textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity))
         
-                root.after(2000, update_temp_display)
+            root.after(2000, update_temp_display)
                 
-        update_temp_display()
             
         sure = tk.Button(room_frame, text = "Sure", font=('Sans serif', 12), bg = "white", command = store_temp)
         sure.pack(padx=10, pady= 10)
