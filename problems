@@ -1,40 +1,14 @@
-Exception in Tkinter callback
 Traceback (most recent call last):
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 1948, in __call__
-    return self.func(*args)
-           ^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 861, in callit
-    func(*args)
-TypeError: 'Text' object is not callable
-User input 72.0
-Exception in Tkinter callback
-Traceback (most recent call last):
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 1948, in __call__
-    return self.func(*args)
-           ^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 861, in callit
-    func(*args)
-TypeError: 'Text' object is not callable
-
-Line 79 : Either all return statements in a function should return an expression, or none of them should.
-According to PEP8, if any return statement returns an expression, any return statements where no value is returned should explicitly state this as return None, and an explicit return statement should be present at the end of the function (if reachable)
-Line 96 : Redefining name 'preferred_temp' from outer scope (line 9)
-It looks like the local variable is hiding a global variable with the same name.
-Most likely there is nothing wrong with this. I just wanted to remind you that you can't access the global variable like this. If you knew it then please ignore the warning.
-If you don't want to see this reminder in the future, then add "redefined-outer-name" (without quotes) into "Tools → Options → Assistant → Disabled checks".
-Line 102 : Redefining name 'preferred_temp' from outer scope (line 9)
-It looks like the local variable is hiding a global variable with the same name.
-Most likely there is nothing wrong with this. I just wanted to remind you that you can't access the global variable like this. If you knew it then please ignore the warning.
-If you don't want to see this reminder in the future, then add "redefined-outer-name" (without quotes) into "Tools → Options → Assistant → Disabled checks".
-Line 155 : No overload variant of "after" of "Misc" matches argument types "int", "Text", "Text"  [call-overload]
-Line 155 : Possible overload variants:
-Line 155 : def after(self, ms: int, func: None = ...) -> None
-Line 155 : def after(self, ms: Union[int, Literal['idle']], func: Callable[..., object], *args: Any) -> str
-Line 164 : Using global for 'preferred_temp' but no assignment is done
-You don't need "global" statement if you don't want to update the variable.
-Line 181 : Using global for 'preferred_temp' but no assignment is done
-You don't need "global" statement if you don't want to update the variable.
-Line 195 : Name "steps_to_take" is not defined  [name-defined]
-Line 196 : Unused variable 'i'
-Looks like the variable is defined (or imported) but not used.
-Line 197 : Name "stepper" is not defined  [name-defined]
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 225, in <module>
+    asyncio.run(main()) #error
+  File "/usr/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+  File "/usr/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+    return future.result()
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 212, in main
+    await task3
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 194, in Heating2
+    for i in range(steps_to_takeH):
+TypeError: 'float' object cannot be interpreted as an integer
