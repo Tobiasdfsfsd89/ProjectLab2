@@ -1,0 +1,41 @@
+>>> %Run finalmaincode.py
+Sensor error: A full buffer was not returned. Try again.
+An unexpected error occurred:
+Traceback (most recent call last):
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 235, in <module>
+    asyncio.run(main())
+  File "/usr/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 232, in main
+    await asyncio.gather(task1, task2, task3, task4)
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 42, in update_sensors
+    temperature_f1 = sensor1.temperature * (9 / 5) + 32
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_dht.py", line 273, in temperature
+    self.measure()
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_dht.py", line 218, in measure
+    pulses = self._get_pulses_pulseio()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_dht.py", line 140, in _get_pulses_pulseio
+    self.pulse_in.clear()
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_blinka/microcontroller/bcm283x/pulseio/PulseIn.py", line 159, in clear
+    self._mq.send("c", True, type=1)
+OSError: [Errno 22] Invalid argument
+Performing cleanup...
+Traceback (most recent call last):
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 243, in <module>
+    sensor1.exit()
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_dht.py", line 92, in exit
+    self.pulse_in.deinit()
+  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_blinka/microcontroller/bcm283x/pulseio/PulseIn.py", line 120, in deinit
+    procs.remove(self._process)
+ValueError: list.remove(x): x not in list
+>>> 
+>>> 
