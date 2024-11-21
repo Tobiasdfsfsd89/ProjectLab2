@@ -1,0 +1,156 @@
+import asyncio
+import threading
+import adafruit_dht
+from adafruit_motorkit import MotorKit
+import board
+import RPi.GPIO as GPIO
+import tkinter as tk
+
+# Initialize variables and sensors
+preferred_temp = {"Room 1": None, "Room 2": None}
+sensor1 = adafruit_dht.DHT22(board.D19)
+sensor2 = adafruit_dht.DHT22(board.D26)
+
+kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+
+temperature = {"Room 1": 0.0, "Room 2": 0.0}
+humidity = {"Room 1": 0.0, "Room 2": 0.0}
+
+current_room = None  # Keeps track of the currently displayed room
+
+
+def start_gui():
+    """Run the GUI application."""
+    global preferred_temp, current_room
+
+    def show_room(room_name):
+        """Display controls for the selected room."""
+        nonlocal current_room
+        current_room = room_name
+        update_gui(room_name)
+
+    def update_preferred_temp(delta):
+        """Update the preferred temperature for the current room."""
+        if current_room is not None:
+            if preferred_temp[current_room] is None:
+                preferred_temp[current_room] = 70  # Default temp
+            preferred_temp[current_room] += delta
+            update_gui(current_room)
+
+    def set_temp_from_input():
+        """Set the preferred temperature based on user input."""
+        if current_room is not None:
+            try:
+                temp = float(pref_temp_text.get("1.0", tk.END).strip())
+                if 0 <= temp <= 125:
+                    preferred_temp[current_room] = temp
+                else:
+                    print("Temperature out of range!")
+            except ValueError:
+                print("Invalid input!")
+            update_gui(current_room)
+
+    def update_gui(room_name):
+        """Update the GUI to reflect the current room's data."""
+        room_label.config(text=f"Room: {room_name}")
+        temp_display.config(text=f"Current Temp: {temperature[room_name]:.1f} °F")
+        hum_display.config(text=f"Humidity: {humidity[room_name]:.1f} %")
+        pref_temp_text.delete("1.0", tk.END)
+        if preferred_temp[room_name] is not None:
+            pref_temp_text.insert(tk.END, str(preferred_temp[room_name]))
+
+    root = tk.Tk()
+    root.geometry("500x500")
+    root.title("Group 4 HVAC System")
+
+    # Main frame
+    room_label = tk.Label(root, text="Select a Room", font=("Sans serif", 20))
+    room_label.pack(pady=10)
+
+    temp_display = tk.Label(root, text="Current Temp: 0.0 °F", font=("Sans serif", 12))
+    temp_display.pack(pady=5)
+
+    hum_display = tk.Label(root, text="Humidity: 0.0 %", font=("Sans serif", 12))
+    hum_display.pack(pady=5)
+
+    tk.Button(root, text="Room 1", command=lambda: show_room("Room 1")).pack(pady=5)
+    tk.Button(root, text="Room 2", command=lambda: show_room("Room 2")).pack(pady=5)
+
+    pref_temp_label = tk.Label(root, text="Preferred Temperature", font=("Sans serif", 12))
+    pref_temp_label.pack(pady=5)
+
+    pref_temp_text = tk.Text(root, height=1, width=10)
+    pref_temp_text.pack(pady=5)
+
+    tk.Button(root, text="Set Temperature", command=set_temp_from_input).pack(pady=5)
+    tk.Button(root, text="+5", command=lambda: update_preferred_temp(5)).pack(pady=5)
+    tk.Button(root, text="-5", command=lambda: update_preferred_temp(-5)).pack(pady=5)
+
+    root.mainloop()
+
+
+async def update_sensors():
+    """Asynchronously update sensor readings."""
+    global temperature, humidity
+    while True:
+        try:
+            temperature["Room 1"] = sensor1.temperature * 9 / 5 + 32
+            humidity["Room 1"] = sensor1.humidity
+
+            temperature["Room 2"] = sensor2.temperature * 9 / 5 + 32
+            humidity["Room 2"] = sensor2.humidity
+
+            await asyncio.sleep(2.0)  # Update every 2 seconds
+        except RuntimeError as error:
+            print(f"Sensor Error: {error.args[0]}")
+            await asyncio.sleep(2.0)
+
+
+async def cooling1():
+    """Cooling logic for Room 1."""
+    while True:
+        if preferred_temp["Room 1"] is not None and temperature["Room 1"] > preferred_temp["Room 1"]:
+            print("Cooling Room 1")
+            kit1.motor4.throttle = 1.0
+            await asyncio.sleep(10.0)
+        else:
+            kit1.motor4.throttle = 0.0
+        await asyncio.sleep(1.0)
+
+
+async def heating2():
+    """Heating logic for Room 2."""
+    while True:
+        if preferred_temp["Room 2"] is not None and temperature["Room 2"] < preferred_temp["Room 2"]:
+            print("Heating Room 2")
+            kit2.motor3.throttle = 1.0
+            await asyncio.sleep(10.0)
+        else:
+            kit2.motor3.throttle = 0.0
+        await asyncio.sleep(1.0)
+
+
+async def main():
+    """Main asynchronous function."""
+    await asyncio.gather(
+        update_sensors(),
+        cooling1(),
+        heating2(),
+    )
+
+
+if __name__ == "__main__":
+    try:
+        # Start the GUI in a separate thread
+        gui_thread = threading.Thread(target=start_gui, daemon=True)
+        gui_thread.start()
+
+        # Run asynchronous tasks
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Program terminated.")
+    finally:
+        sensor1.exit()
+        sensor2.exit()
+        GPIO.cleanup()
