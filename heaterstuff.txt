@@ -7,8 +7,15 @@ import time
 import tkinter as tk
 
 preferred_temp = None
-sensor1 = adafruit_dht.DHT22(board.D17)
-sensor2 = adafruit_dht.DHT22(board.D27)
+sensor1 = adafruit_dht.DHT22(board.D19)
+sensor2 = adafruit_dht.DHT22(board.D26)
+
+# relayPin1 = 5   
+# relayPin2 = 6
+# 
+# GPIO.setmode(GPIO.BCM)
+# GPIO.setup(relayPin1, GPIO.OUT)
+# GPIO.setup(relayPin2, GPIO.OUT)
 
 #Clearing Room 1 Stepper and DC Motors
 kit1 = MotorKit(i2c=board.I2C(), address=0x61)
@@ -182,21 +189,17 @@ async def Heating2():
     temp2 = preferred_temp
     if temp2 is not None:
         heating = (temp2 - temperature_f2)
-        heatingSteps = [200 * (1 / (temperature_f2 - temp2)), 0]
-        steps_to_takeH = heatingSteps[0] - heatingSteps[1]        
+       
         while (True):
             if(heating < 0):   
                 print("Heating")
                 kit2.motor4.throttle = 0.0
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
-                if (steps_to_takeH != 0):
-                    for i in range(steps_to_takeH):
-                        kit1.stepper1.onestep(direction=stepper.BACKWARD,style=stepper.SINGLE)
-                        time.sleep(0.01)
-                    heatingSteps[i + 1] = heatingSteps[i]
-                    
+#                 GPIO.output(relayPin1, GPIO.HIGH)  
                 if abs(temperature_f2 - temp2) <= 1:
+#                     GPIO.output(relayPin1, GPIO.LOW)  
+#                     print("Heating: OFF") 
                     break
         kit2.motor3.throttle = 0.0
         kit2.motor4.throttle = 0.0
@@ -234,4 +237,3 @@ while True:
         GPIO.cleanup()
         
     time.sleep(3.0)
-
