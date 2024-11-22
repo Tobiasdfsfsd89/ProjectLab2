@@ -136,25 +136,30 @@ async def run_gui():
         pref_temp_decr = tk.Button(room_frame, text = "- ", font=('Sans serif', 12), bg = "white", command = minusfive)
         pref_temp_decr.pack(side='top', padx=10)
         
-        if room_name == "Room 1":   
+        def update_room_info(room_name):
+            if room_name == "Room 1":
+                temperature = temperature_f1
+                humidity = humidity1
+            elif room_name == "Room 2":
+                temperature = temperature_f2
+                humidity = humidity2
+        
             textbox_tem.delete("1.0", tk.END)
             textbox_hum.delete("1.0", tk.END)
-            
-            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f1))
-            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity1))
-            
-        elif room_name == "Room 2":
-            textbox_tem.delete("1.0", tk.END)
-            textbox_hum.delete("1.0", tk.END)
-            
-            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f2))
-            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity2))
+            textbox_tem.insert(tk.END, f"{temperature:.1f}°F")
+            textbox_hum.insert(tk.END, f"{humidity:.1f}%")
+        
+            # Schedule the next update
+            root.after(2000, lambda: update_room_info(room_name))
+
+# Replace this in the `rooms` function where `root.after` is used
+        update_room_info(room_name)
+
             
         sure = tk.Button(room_frame, text = "Sure", font=('Sans serif', 12), bg = "white", command = store_temp)
         sure.pack(padx=10, pady= 10)
         
         # Schedule the next update after 2 seconds (2000 milliseconds)
-        root.after(2000, textbox_tem, textbox_hum)
 
         button3 = tk.Button(room_frame, text = "Back", font=('Sans serif', 12), command = lambda:go_back(room_frame))
         button3.pack(padx=0, pady=10)
