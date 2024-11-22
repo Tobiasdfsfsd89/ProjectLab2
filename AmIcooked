@@ -1,243 +1,41 @@
-import asyncio
-import adafruit_dht
-from adafruit_motorkit import MotorKit
-import board
-import RPi.GPIO as GPIO
-import time
-import tkinter as tk
+async def main():
+    global room_selected  # Tracks the currently active room
+    room_selected = 1  # Default to Room 1 initially
 
-preferred_temp = None
-sensor1 = adafruit_dht.DHT22(board.D6)
-sensor2 = adafruit_dht.DHT22(board.D13)
+    # Task for GUI
+    gui_task = asyncio.create_task(run_gui())
 
-temperature_f1 = 0
-temperature_f2 = 0
-humidity1 = 0
-humidity2 = 0
+    # Task for continuously updating sensors
+    sensor_task = asyncio.create_task(update_sensors())
 
-# relayPin1 = 5   
-# relayPin2 = 6
-# 
-# GPIO.setmode(GPIO.BCM)
-# GPIO.setup(relayPin1, GPIO.OUT)
-# GPIO.setup(relayPin2, GPIO.OUT)
+    # Dynamic task control for room-specific functionality
+    active_task = None
 
-#Clearing Room 1 Stepper and DC Motors
-kit1 = MotorKit(i2c=board.I2C(), address=0x61)
-kit1.motor3.throttle = 0.0
-kit1.motor4.throttle = 0.0
-kit1.stepper1.release()
-
-#Clearing Room 2 Stepper and DC Motors
-kit2 = MotorKit(i2c=board.I2C(), address=0x60)
-kit2.motor3.throttle = 0.0
-kit2.motor4.throttle = 0.0
-kit2.stepper1.release()
-
-async def update_sensors():
-    global temperature_f1, humidity1, temperature_f2, humidity2
-    while True:
-        try:
-            temperature_f1 = sensor1.temperature * (9 / 5) + 32
-            humidity1 = sensor1.humidity
-            temperature_f2 = sensor2.temperature * (9 / 5) + 32
-            humidity2 = sensor2.humidity
-        except RuntimeError as error:
-            print(f"Sensor error: {error.args[0]}")
-            sensor1.exit()
-            sensor2.exit()
-            GPIO.cleanup()
-        await asyncio.sleep(3.0)
-
-async def run_gui():
-    global preferred_temp
-    root = tk.Tk()
-
-    root.geometry("500x500")
-    root.title("Group 4 HVAC System")
-
-    label = tk.Label(root, text="HVAC SYSTEM", font=('Sans serif', 20))
-    label.pack(padx=150, pady=0)
-
-    def room_1():
-        hide_rooms(1)
-    def room_2():
-        hide_rooms(2)
-
-    main_frame = tk.Frame(root)
-    main_frame.pack()
-
-    buttona = tk.Button(main_frame, text="Room 1", command = room_1)
-    buttonb = tk.Button(main_frame, text="Room 2", command = room_2)
-
-    buttona.pack(padx=0, pady=10)
-    buttonb.pack(padx=0, pady=10)
-
-    def hide_rooms(room_number):
-        main_frame.pack_forget() 
-
-        if room_number == 1:
-            rooms("Room 1") 
-        elif room_number == 2:
-            rooms("Room 2")  
-
-
-    def go_back(room_frame):
-        room_frame.pack_forget()
-        main_frame.pack()
-
-    def rooms(room_name):
-
-        room_frame = tk.Frame(root)
-        room_frame.pack()
-        
-        room_label = tk.Label(room_frame, text=f"Information for {room_name}", font=('Sans serif', 16))
-        room_label.pack(pady=10)
-        
-        def change_button():
-            button1.config(bg = 'light green')
-            
-        def back_to():
-            if button1.cget('bg') == 'light green':
-                if button2.cget('activebackground') == 'Orange':
-                    button1.config(bg = 'white')
-        def store_temp():
-            global preferred_temp
-            u_inp = pref_temp_text.get("1.0", tk.END).strip()
-            if not u_inp.isdigit():
-                print("Invalid input. Please enter a number.")
-            temp = float(u_inp)
-            while(temp):     
-                if temp < 0 or temp > 125:
-                    print('Just why are you trying to do this')
-                    break
-                else:
-                    preferred_temp = float(temp)
-                    print("User input", temp)
-                    return preferred_temp
-            
-        def plusfive():
-            global preferred_temp
-            preferred_temp = store_temp()
-            value = preferred_temp + 5
-            pref_temp_text.delete("1.0", tk.END)
-            pref_temp_text.insert(tk.END, str(value))
-                
-        def minusfive():
-            global preferred_temp
-            preferred_temp = store_temp()
-            value = preferred_temp - 5
-            pref_temp_text.delete("1.0", tk.END)
-            pref_temp_text.insert(tk.END, str(value))
-
-        button1 = tk.Button(room_frame, text="Open Register", font=('Sans serif', 12), bg = 'white', command = change_button)
-        button1.pack(padx=0, pady=10)
-
-        button2 = tk.Button(room_frame, text="Close Register", font=('Sans serif', 12), bg = 'white', activebackground = 'Orange', command = back_to)
-        button2.pack(padx=0, pady=10)
-
-        label_tem = tk.Label(room_frame, text="Temperature", font=('Sans serif', 12))
-        label_tem.pack(side='top', pady=10)
-
-        textbox_tem = tk.Text(room_frame, height=1, width=5, font=('Sans serif', 12), borderwidth=5 )
-        textbox_tem.pack(side='top', padx=10)
-
-        label_hum = tk.Label(room_frame, text="Humidity", font=('Sans serif', 12))
-        label_hum.pack(side='top', pady=10)
-
-        textbox_hum = tk.Text(room_frame, height=1, width=5, font=('Sans serif', 12), borderwidth=5)
-        textbox_hum.pack(side='top', padx=10)
-        
-        Pref_temp_label = tk.Label(room_frame, text="Preferred Temperature", font=('Sans serif', 12))
-        Pref_temp_label.pack(side='top', pady=10)
-        
-        pref_temp_text = tk.Text(room_frame, height=1, width=5, font=('Sans serif', 12), borderwidth=5)
-        pref_temp_text.pack(side='top', padx=10)
-        
-        pref_temp_incre = tk.Button(room_frame, text = "+", font=('Sans serif', 12), bg = "white", command = plusfive)
-        pref_temp_incre.pack(side='top', padx=10)
-        
-        pref_temp_decr = tk.Button(room_frame, text = "- ", font=('Sans serif', 12), bg = "white", command = minusfive)
-        pref_temp_decr.pack(side='top', padx=10)
-
-        room_data = {
-            "Room 1": (temperature_f1, humidity1),
-            "Room 2": (temperature_f2, humidity2),
-        }
-        
-        def update_temp_display():
-            if room_name in room_data:
-                temperature, humidity = room_data[room_name]
-                textbox_tem.delete("1.0", tk.END)
-                textbox_hum.delete("1.0", tk.END)
-                textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature))
-                textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity))
-        
-            root.after(2000, update_temp_display)
-                
-        
-            
-        sure = tk.Button(room_frame, text = "Sure", font=('Sans serif', 12), bg = "white", command = store_temp)
-        sure.pack(padx=10, pady= 10)
-        
-
-        button3 = tk.Button(room_frame, text = "Back", font=('Sans serif', 12), command = lambda:go_back(room_frame))
-        button3.pack(padx=0, pady=10)
-
-    root.mainloop()
-
-#Room 1 Asynced Motor Control Function
-async def cooling1():
-    temp1 = preferred_temp
-    if temp1 is not None:
-        coolingIn1 = (temperature_f1 - temp1)
-        while (True):
-            if (coolingIn1 > 0):
-                print("Cooling")
-                await asyncio.sleep(10.0)
-                kit1.motor4.throttle = 1.0
-                if abs(temperature_f1 - temp1) <= 1:
-                    break
-        kit1.motor3.throttle = 0.0
-        kit1.motor4.throttle = 0.0
-
-#Room 2 Asynced Motor Control Function
-async def Heating2():    
-    temp2 = preferred_temp
-    if temp2 is not None:
-        heating = (temp2 - temperature_f2)       
-        while (True):
-            if(heating < 0):   
-                print("Heating")
-                await asyncio.sleep(10.0)
-                kit2.motor3.throttle = 1.0
-#                 GPIO.output(relayPin1, GPIO.HIGH)  
-                if abs(temperature_f2 - temp2) <= 1:
-#                     GPIO.output(relayPin1, GPIO.LOW)  
-#                     print("Heating: OFF") 
-                    break
-        kit2.motor3.throttle = 0.0
-        kit2.motor4.throttle = 0.0
- 
-
-
-    
-#Temperature Sensor Updates and Asynced GUI/Motor Control Func
-while True:
     try:
-        async def main():
-            task1 = asyncio.create_task(run_gui())
-            task2 = asyncio.create_task(cooling1())
-            task3 = asyncio.create_task(Heating2())
-            task4 = asyncio.create_task(update_sensors())
-            
-            await asyncio.gather(task1, task2, task3, task4)
-            if __name__ == "__main__":
-                asyncio.run(main())
-                
+        while True:
+            # Cancel any existing room-specific task if the room changes
+            if room_selected == 1:
+                if not active_task or active_task.get_name() != "cooling1":
+                    if active_task:
+                        active_task.cancel()  # Cancel the previous task
+                    print("Switching to Cooling for Room 1")
+                    active_task = asyncio.create_task(cooling1(), name="cooling1")
+            elif room_selected == 2:
+                if not active_task or active_task.get_name() != "heating2":
+                    if active_task:
+                        active_task.cancel()  # Cancel the previous task
+                    print("Switching to Heating for Room 2")
+                    active_task = asyncio.create_task(Heating2(), name="heating2")
+
+            await asyncio.sleep(1)  # Check periodically for room changes
+
+    except asyncio.CancelledError:
+        print("Tasks cancelled, shutting down gracefully...")
+
     finally:
-        sensor1.exit()
-        sensor2.exit()
-        GPIO.cleanup()
-        
-    time.sleep(3.0)
+        # Cleanup on exit
+        gui_task.cancel()
+        sensor_task.cancel()
+        if active_task:
+            active_task.cancel()
+        print("All tasks cleaned up.")
