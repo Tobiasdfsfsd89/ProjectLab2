@@ -251,32 +251,14 @@ async def main():
     await asyncio.create_task(update_sensors()) 
     await start_gui_thread()  # Start GUI in a separate thread
     
-    current_task = None  # Keep track of the currently running task
 
     if picked_room == "Room 1":
-        # Cancel any ongoing task
-        if current_task and not current_task.done():
-            current_task.cancel()
-            await asyncio.sleep(0.1)  # Give time for the task to cancel
-        
-        # Start cooling task if not already running
-        if not current_task or current_task.done():
-            print("Starting cooling for Room 1")
-            current_task = asyncio.create_task(cooling1())
+        print("Starting cooling for Room 1")
+        await asyncio.create_task(cooling1())
 
     elif picked_room == "Room 2":
-        # Cancel any ongoing task
-        if current_task and not current_task.done():
-            current_task.cancel()
-            await asyncio.sleep(0.1)  # Give time for the task to cancel
-            
-        # Start heating task if not already running
-        if not current_task or current_task.done():
-            print("Starting heating for Room 2")
-            current_task = asyncio.create_task(Heating2())
-
-    # Allow time for picked_room to update
-    await asyncio.sleep(1.0)
+        print("Starting cooling for Room 1")
+        await asyncio.create_task(Heating())
     
 if __name__ == "__main__":
     try:
