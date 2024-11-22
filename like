@@ -1,0 +1,139 @@
+import asyncio
+import adafruit_dht
+from adafruit_motorkit import MotorKit
+import board
+import RPi.GPIO as GPIO
+import tkinter as tk
+import traceback
+
+# Global variables
+preferred_temp = None
+temperature_f1 = 0
+temperature_f2 = 0
+humidity1 = 0
+humidity2 = 0
+
+# Initialize DHT22 Sensors
+sensor1 = adafruit_dht.DHT22(board.D20)
+sensor2 = adafruit_dht.DHT22(board.D21)
+
+# Initialize MotorKit
+kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+
+# Ensure motors are stopped initially
+kit1.motor3.throttle = 0.0
+kit1.motor4.throttle = 0.0
+kit2.motor3.throttle = 0.0
+kit2.motor4.throttle = 0.0
+
+# Update sensor readings
+async def update_sensors():
+    global temperature_f1, humidity1, temperature_f2, humidity2
+    while True:
+        try:
+            temperature_f1 = sensor1.temperature * (9 / 5) + 32
+            humidity1 = sensor1.humidity
+            temperature_f2 = sensor2.temperature * (9 / 5) + 32
+            humidity2 = sensor2.humidity
+            print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
+            print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
+        except RuntimeError as error:
+            print(f"Sensor error: {error.args[0]}")
+        await asyncio.sleep(3)  # Delay between sensor readings
+
+# GUI logic
+async def run_gui():
+    global preferred_temp
+    root = tk.Tk()
+    root.geometry("500x500")
+    root.title("Group 4 HVAC System")
+
+    label = tk.Label(root, text="HVAC SYSTEM", font=('Sans serif', 20))
+    label.pack(padx=150, pady=0)
+
+    def update_temp_display():
+        textbox_tem1.delete("1.0", tk.END)
+        textbox_hum1.delete("1.0", tk.END)
+        textbox_tem2.delete("1.0", tk.END)
+        textbox_hum2.delete("1.0", tk.END)
+
+        textbox_tem1.insert(tk.END, f"{temperature_f1:.1f}°F")
+        textbox_hum1.insert(tk.END, f"{humidity1:.1f}%")
+        textbox_tem2.insert(tk.END, f"{temperature_f2:.1f}°F")
+        textbox_hum2.insert(tk.END, f"{humidity2:.1f}%")
+
+        root.after(2000, update_temp_display)  # Repeat every 2 seconds
+
+    # GUI layout
+    tk.Label(root, text="Room 1 Temperature").pack()
+    textbox_tem1 = tk.Text(root, height=1, width=10)
+    textbox_tem1.pack()
+
+    tk.Label(root, text="Room 1 Humidity").pack()
+    textbox_hum1 = tk.Text(root, height=1, width=10)
+    textbox_hum1.pack()
+
+    tk.Label(root, text="Room 2 Temperature").pack()
+    textbox_tem2 = tk.Text(root, height=1, width=10)
+    textbox_tem2.pack()
+
+    tk.Label(root, text="Room 2 Humidity").pack()
+    textbox_hum2 = tk.Text(root, height=1, width=10)
+    textbox_hum2.pack()
+
+    update_temp_display()
+    root.mainloop()
+
+# Room 1 cooling
+async def cooling1():
+    while True:
+        if preferred_temp and temperature_f1 > preferred_temp:
+            print("Cooling Room 1")
+            kit1.motor4.throttle = 1.0  # Cooling motor on
+            await asyncio.sleep(10)  # Run for 10 seconds
+            kit1.motor4.throttle = 0.0  # Cooling motor off
+        await asyncio.sleep(2)
+
+# Room 2 heating
+async def heating2():
+    while True:
+        if preferred_temp and temperature_f2 < preferred_temp:
+            print("Heating Room 2")
+            kit2.motor3.throttle = 1.0  # Heating motor on
+            await asyncio.sleep(10)  # Run for 10 seconds
+            kit2.motor3.throttle = 0.0  # Heating motor off
+        await asyncio.sleep(2)
+
+# Cleanup logic
+def cleanup():
+    try:
+        del sensor1  # Deallocate sensor objects
+        del sensor2
+        GPIO.cleanup()
+        print("Sensors and GPIO cleaned up.")
+    except Exception as e:
+        print("Cleanup error:", e)
+
+# Main async function
+async def main():
+    await asyncio.gather(
+        run_gui(),
+        update_sensors(),
+        cooling1(),
+        heating2()
+    )
+
+# Run the program
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
+    except Exception as e:
+        print("Unexpected error occurred:")
+        traceback.print_exc()
+    finally:
+        print("Performing cleanup...")
+        cleanup()
+        print("Cleanup complete.")
