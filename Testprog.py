@@ -1,14 +1,16 @@
-#Two room heating or cooling
-#Caleb Test Program Nov 12
 import asyncio
 import adafruit_dht
 from adafruit_motorkit import MotorKit
 import board
 import RPi.GPIO as GPIO
-import time
 import tkinter as tk
+from adafruit_motor import stepper
 
-preferred_temp = None
+preferred_temp = 0
+temperature_f1 = 0
+humidity1 = 0
+temperature_f2 = 0
+humidity2 = 0
 sensor1 = adafruit_dht.DHT22(board.D20)
 sensor2 = adafruit_dht.DHT22(board.D21)
 
@@ -83,7 +85,6 @@ async def run_gui():
             u_inp = pref_temp_text.get("1.0", tk.END).strip()
             if not u_inp.isdigit():
                 print("Invalid input. Please enter a number.")
-                return
             temp = float(u_inp)
             while(temp):     
                 if temp < 0 or temp > 125:
@@ -175,27 +176,23 @@ async def cooling1():
             print("Cooling Room 1")
             coolingIn1 = temperature_f1 - preferred_temp
             
-            # Steps calculation (adjust as needed for your setup)
             coolingSteps = [200 * (1 / (temperature_f1 - preferred_temp)), 0]
             steps_to_takec = int(coolingSteps[0] - coolingSteps[1])
 
-            # Ensure the cooling DC motor is active
-            kit1.motor3.throttle = 0.0  # Turn off heating motor
-            await asyncio.sleep(1.0)  # Allow settling time
-            kit1.motor4.throttle = 1.0  # Activate cooling motor
+            await asyncio.sleep(1.0)  
+            kit1.motor4.throttle = 1.0  
             
-            # Stepper motor cooling logic
             if steps_to_takec != 0:
                 print(f"Taking {steps_to_takec} steps for cooling")
-                for i in range(abs(steps_to_takec)):
+                for _ in range(abs(steps_to_takec)):
                     direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
-                    kit1.stepper1.onestep(direction=direction, style=stepper.SINGLE)
+                    kit1.stepper1.onestep(direction=direction, style=stepper.DOUBLE)
+                    kit1.stepper1.release()
                     await asyncio.sleep(0.02)  # Adjust for motor response time
 
             # Update cooling steps dynamically
             coolingSteps[1] = coolingSteps[0]
 
-            # Exit the loop if temperature is close to preferred
             if abs(temperature_f1 - preferred_temp) <= 1:
                 print("Cooling completed: Room 1")
                 kit1.motor4.throttle = 0.0  # Turn off cooling motor
@@ -211,19 +208,12 @@ async def Heating2():
     temp2 = preferred_temp
     if temp2 is not None:
         heating = (temp2 - temperature_f2)
-        heatingSteps = [200 * (1 / temperaturef_2 - temp2)), 0]
-        steps_to_takeH = heatingSteps[0] - heatingSteps[1]
         while (True):
             if(heating < 0):   
                 print("Heating")
                 kit2.motor4.throttle = 0.0
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
-                if(steps_to_takeH != 0):
-                    for i in range(steps_to_takeH):
-                        kit1.stepper1.onestep(direction = stepper.BACKWARD, style =stepper.SINGLE)
-                        time.sleep(0.01)
-                    heatingSteps[1] = heatingSteps[0]
                 if abs(temperature_f2 - temp2) <= 1:
                     break
         kit2.motor3.throttle = 0.0
@@ -248,7 +238,7 @@ async def main():
     task1 = asyncio.create_task(update_sensors())
     task2 = asyncio.create_task(run_gui())
     task3 = asyncio.create_task(cooling1())
-    task4 = asyncio.create_task(heating2())
+    task4 = asyncio.create_task(Heating2())
     # Wait for all tasks to complete
     await asyncio.gather(task1, task2, task3, task4)
 
@@ -260,7 +250,7 @@ if __name__ == "__main__":
         print("Program interrupted. Exiting...")
     finally:
         print("Performing cleanup...")
-        del sensor1
-        del sensor2
+        sensor1.exit()
+        sensor2.exit()
         GPIO.cleanup()
         print("Cleanup complete.")
