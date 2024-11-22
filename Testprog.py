@@ -172,12 +172,19 @@ async def cooling1():
     temp1 = preferred_temp
     if temp1 is not None:
         coolingIn1 = (temperature_f1 - temp1)
+        coolingSteps = [200 * (1 / temperaturef_2 - temp2)), 0]
+        steps_to_takec = coolingSteps[0] - coolingSteps[1]
         while (True):
             if (coolingIn1 > 0):
                 print("Cooling")
                 kit1.motor3.throttle = 0.0
                 await asyncio.sleep(10.0)
                 kit1.motor4.throttle = 1.0
+                if(steps_to_takec != 0):
+                    for i in range(steps_to_takec):
+                        kit1.stepper1.onestep(direction = stepper.BACKWARD, style =stepper.SINGLE)
+                        time.sleep(0.01)
+                     coolingSteps[0] - coolingSteps[1]
                 if abs(temperature_f1 - temp1) <= 1:
                     break
         kit1.motor3.throttle = 0.0
@@ -198,7 +205,7 @@ async def Heating2():
                 kit2.motor4.throttle = 0.0
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
-                if(steps_to_take != 0):
+                if(steps_to_takeH != 0):
                     for i in range(steps_to_takeH):
                         kit1.stepper1.onestep(direction = stepper.BACKWARD, style =stepper.SINGLE)
                         time.sleep(0.01)
