@@ -203,34 +203,23 @@ async def Heating2():
  
 
 async def main():
-    task1 = asyncio.create_task(run_gui())
-    task2 = asyncio.create_task(cooling1())
-    task3 = asyncio.create_task(Heating2())
-    
-    await task1
-    await task2
-    await task3
+    # Create tasks for concurrent execution
+    task1 = asyncio.create_task(update_sensors())
+    task2 = asyncio.create_task(run_gui())
+    task3 = asyncio.create_task(cooling1())
+    task4 = asyncio.create_task(heating2())
+    # Wait for all tasks to complete
+    await asyncio.gather(task1, task2, task3, task4)
 
-    await main()
-
-#Temperature Sensor Updates and Asynced GUI/Motor Control Func
-while True:
+# Program Entry Point
+if __name__ == "__main__":
     try:
-        temperature_f1 = sensor1.temperature * (9/5) +32
-        humidity1 = sensor1.humidity
-        
-        temperature_f2 = sensor2.temperature * (9/5) +32
-        humidity2 = sensor2.humidity
-        
-        asyncio.run(main()) #error
-              
-    except RuntimeError as error:
-        print(error.args[0])
-        time.sleep(2.0)
-        raise error
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
     finally:
-        sensor1.exit()
-        sensor2.exit()
+        print("Performing cleanup...")
+        del sensor1
+        del sensor2
         GPIO.cleanup()
-        
-    time.sleep(3.0)
+        print("Cleanup complete.")
