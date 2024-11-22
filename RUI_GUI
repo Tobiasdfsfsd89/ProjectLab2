@@ -1,0 +1,129 @@
+import time
+import board
+import adafruit_dht
+import tkinter as tk
+import RPi.GPIO as GPIO
+
+
+sensor1 = adafruit_dht.DHT22(board.D22)
+sensor2 = adafruit_dht.DHT22(board.D13)
+
+root = tk.Tk()
+
+
+def run_gui():
+    root.geometry("500x500")
+    root.title("Group 4 HVAC System")
+
+    label = tk.Label(root, text="HVAC SYSTEM", font=('Sans serif', 20))
+    label.pack(padx=150, pady=0)
+
+    def room_1():
+        hide_rooms(1)
+    def room_2():
+        hide_rooms(2)
+
+    main_frame = tk.Frame(root)
+    main_frame.pack()
+
+    buttona = tk.Button(main_frame, text="Room 1", command = room_1)
+    buttonb = tk.Button(main_frame, text="Room 2", command = room_2)
+
+    buttona.pack(padx=0, pady=10)
+    buttonb.pack(padx=0, pady=10)
+
+    def hide_rooms(room_number):
+        main_frame.pack_forget() 
+
+        if room_number == 1:
+            rooms("Room 1") 
+        elif room_number == 2:
+            rooms("Room 2")  
+
+
+    def go_back(room_frame):
+        room_frame.pack_forget()
+        main_frame.pack()
+
+    def rooms(room_name):
+
+        room_frame = tk.Frame(root)
+        room_frame.pack()
+        
+        room_label = tk.Label(room_frame, text=f"Information for {room_name}", font=('Sans serif', 16))
+        room_label.pack(pady=10)
+        
+        def change_button():
+            button1.config(bg = 'light green')
+            
+        def back_to():
+            if button1.cget('bg') == 'light green':
+                if button2.cget('activebackground') == 'Orange':
+                    button1.config(bg = 'white')
+
+        button1 = tk.Button(room_frame, text="Open Register", font=('Sans serif', 12), bg = 'white', command = change_button)
+        button1.pack(padx=0, pady=10)
+
+        button2 = tk.Button(room_frame, text="Close Register", font=('Sans serif', 12), bg = 'white', activebackground = 'Orange', command = back_to)
+        button2.pack(padx=0, pady=10)
+
+        label_tem = tk.Label(room_frame, text="Temperature", font=('Sans serif', 12))
+        label_tem.pack(side='top', pady=10)
+
+        textbox_tem = tk.Text(room_frame, height=1, width=5, font=('Sans serif', 12), borderwidth=5 )
+        textbox_tem.pack(side='top', padx=10)
+
+        label_hum = tk.Label(room_frame, text="Humidity", font=('Sans serif', 12))
+        label_hum.pack(side='top', pady=10)
+
+        textbox_hum = tk.Text(room_frame, height=1, width=5, font=('Sans serif', 12), borderwidth=5)
+        textbox_hum.pack(side='top', padx=10)
+        
+        if room_name == "Room 1":   
+            textbox_tem.delete("1.0", tk.END)
+            textbox_hum.delete("1.0", tk.END)
+            
+            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f1))
+            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity1))
+            
+        elif room_name == "Room 2":
+            textbox_tem.delete("1.0", tk.END)
+            textbox_hum.delete("1.0", tk.END)
+            
+            textbox_tem.insert(tk.END, "{0:0.1f}°F".format(temperature_f2))
+            textbox_hum.insert(tk.END, "{0:0.1f}%".format(humidity2))            
+        
+        # Schedule the next update after 2 seconds (2000 milliseconds)
+        root.after(2000, textbox_tem, textbox_hum)
+
+        button3 = tk.Button(room_frame, text = "Back", font=('Sans serif', 12), command = lambda:go_back(room_frame))
+        button3.pack(padx=0, pady=10)
+
+    root.mainloop()
+
+
+while True:
+    try:
+        temperature_f1 = sensor1.temperature * (9/5) +32
+        humidity1 = sensor1.humidity
+        
+        temperature_f2 = sensor2.temperature * (9/5) +32
+        humidity2 = sensor2.humidity
+        run_gui()
+        
+    except RuntimeError as error:
+        print(error.args[0])
+        time.sleep(2.0)
+        continue
+    except Exception as error:
+        sensor1.exit()
+        sensor2.exit()
+        try:
+            root.destroy()
+        except NameError as error:
+            pass
+        raise error
+    finally:
+        GPIO.cleanup()
+        
+    time.sleep(3.0)
