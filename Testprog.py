@@ -200,7 +200,20 @@ async def Heating2():
                     break
         kit2.motor3.throttle = 0.0
         kit2.motor4.throttle = 0.0
- 
+
+async def update_sensors():
+    global temperature_f1, humidity1, temperature_f2, humidity2
+    while True:
+        try:
+            temperature_f1 = sensor1.temperature * (9 / 5) + 32
+            humidity1 = sensor1.humidity
+            temperature_f2 = sensor2.temperature * (9 / 5) + 32
+            humidity2 = sensor2.humidity
+            print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
+            print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
+        except RuntimeError as error:
+            print(f"Sensor error: {error.args[0]}")
+        await asyncio.sleep(3)  # Delay between sensor readings
 
 async def main():
     # Create tasks for concurrent execution
