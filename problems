@@ -1,38 +1,35 @@
-from adafruit_motor import stepper  # Ensure this is imported for stepper control
-
-async def cooling1():
-    global temperature_f1, preferred_temp
-
+async def update_sensors():
+    global temperature_f1, humidity1, temperature_f2, humidity2
     while True:
-        if preferred_temp and temperature_f1 > preferred_temp:
-            print("Cooling Room 1")
-            coolingIn1 = temperature_f1 - preferred_temp
-            
-            # Steps calculation (adjust as needed for your setup)
-            coolingSteps = [200 * (1 / (temperature_f1 - preferred_temp)), 0]
-            steps_to_takec = int(coolingSteps[0] - coolingSteps[1])
+        try:
+            temperature_f1 = sensor1.temperature * (9 / 5) + 32
+            humidity1 = sensor1.humidity
+            temperature_f2 = sensor2.temperature * (9 / 5) + 32
+            humidity2 = sensor2.humidity
+            print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
+            print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
+        except RuntimeError as error:
+            print(f"Sensor error: {error.args[0]}")
+        await asyncio.sleep(3.0) # Delay between sensor readings
 
-            # Ensure the cooling DC motor is active
-            kit1.motor3.throttle = 0.0  # Turn off heating motor
-            await asyncio.sleep(1.0)  # Allow settling time
-            kit1.motor4.throttle = 1.0  # Activate cooling motor
-            
-            # Stepper motor cooling logic
-            if steps_to_takec != 0:
-                print(f"Taking {steps_to_takec} steps for cooling")
-                for i in range(abs(steps_to_takec)):
-                    direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
-                    kit1.stepper1.onestep(direction=direction, style=stepper.SINGLE)
-                    await asyncio.sleep(0.02)  # Adjust for motor response time
-
-            # Update cooling steps dynamically
-            coolingSteps[1] = coolingSteps[0]
-
-            # Exit the loop if temperature is close to preferred
-            if abs(temperature_f1 - preferred_temp) <= 1:
-                print("Cooling completed: Room 1")
-                kit1.motor4.throttle = 0.0  # Turn off cooling motor
-                break
-
-        # Wait before rechecking temperature
-        await asyncio.sleep(2)
+async def main():
+    background_thread1 = threading.Thread(target = run_gui, daemon = True)
+    background_thread1.start()
+    
+    task1 = asyncio.create_task(update_sensors())
+    task2 = asyncio.create_task(cooling1())
+    task3 = asyncio.create_task(Heating2())
+    
+    await asyncio.gather(task1, task2, task3)    
+# Program Entry Point
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
+    finally:
+        print("Performing cleanup...")
+        sensor1.exit()
+        sensor2.exit()
+        GPIO.cleanup()
+        print("Cleanup complete.")
