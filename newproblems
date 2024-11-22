@@ -1,8 +1,12 @@
+>> %Run finalmaincode.py
+Sensor error: A full buffer was not returned. Try again.
+An unexpected error occurred:
 Traceback (most recent call last):
-  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 239, in <module>
-    sensor1.exit()
-  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_dht.py", line 92, in exit
-    self.pulse_in.deinit()
-  File "/home/group4/Desktop/dht_test/myenv/lib/python3.11/site-packages/adafruit_blinka/microcontroller/bcm283x/pulseio/PulseIn.py", line 120, in deinit
-    procs.remove(self._process)
-ValueError: list.remove(x): x not in list
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 195, in main
+    await asyncio.gather(task1, task2, task3, task4)
+  File "/home/group4/Desktop/dht_test/myenv/finalmaincode.py", line 36, in update_sensors
+    temperature_f1 = sensor1.temperature * (9 / 5) + 32
+                     ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+TypeError: unsupported operand type(s) for *: 'NoneType' and 'float'
+Performing cleanup...
+Cleanup complete. Goodbye!
