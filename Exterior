@@ -33,18 +33,32 @@ async def update_sensors():
     global temperature_f1, humidity1, temperature_f2, humidity2
     while True:
         try:
-            temperature_f1 = sensor1.temperature * (9 / 5) + 32
-            humidity1 = sensor1.humidity
-            temperature_f2 = sensor2.temperature * (9 / 5) + 32
-            humidity2 = sensor2.humidity
+            # Read sensor 1
+            temp1 = sensor1.temperature
+            hum1 = sensor1.humidity
+            if temp1 is not None and hum1 is not None:
+                temperature_f1 = temp1 * (9 / 5) + 32
+                humidity1 = hum1
+            else:
+                print("Sensor 1 returned None. Skipping this reading.")
+
+            # Read sensor 2
+            temp2 = sensor2.temperature
+            hum2 = sensor2.humidity
+            if temp2 is not None and hum2 is not None:
+                temperature_f2 = temp2 * (9 / 5) + 32
+                humidity2 = hum2
+            else:
+                print("Sensor 2 returned None. Skipping this reading.")
         except RuntimeError as error:
             print(f"Sensor error: {error.args[0]}")
-            await asyncio.sleep(1.0)
-            continue
         except OSError as error:
             print(f"Critical sensor error: {error}")
             break
+        except Exception as e:
+            print(f"Unexpected error while reading sensors: {e}")
         await asyncio.sleep(3.0)
+
 
 # Async function to run the GUI
 async def run_gui():
