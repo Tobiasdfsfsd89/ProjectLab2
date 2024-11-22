@@ -168,27 +168,41 @@ async def run_gui():
 
 #Room 1 Asynced Motor Control Function
 async def cooling1():
-    global preferred_temp
-    temp1 = preferred_temp
-    if temp1 is not None:
-        coolingIn1 = (temperature_f1 - temp1)
-        coolingSteps = [200 * (1 / temperaturef_2 - temp2)), 0]
-        steps_to_takec = coolingSteps[0] - coolingSteps[1]
-        while (True):
-            if (coolingIn1 > 0):
-                print("Cooling")
-                kit1.motor3.throttle = 0.0
-                await asyncio.sleep(10.0)
-                kit1.motor4.throttle = 1.0
-                if(steps_to_takec != 0):
-                    for i in range(steps_to_takec):
-                        kit1.stepper1.onestep(direction = stepper.BACKWARD, style =stepper.SINGLE)
-                        time.sleep(0.01)
-                     coolingSteps[0] - coolingSteps[1]
-                if abs(temperature_f1 - temp1) <= 1:
-                    break
-        kit1.motor3.throttle = 0.0
-        kit1.motor4.throttle = 0.0
+    global temperature_f1, preferred_temp
+
+    while True:
+        if preferred_temp and temperature_f1 > preferred_temp:
+            print("Cooling Room 1")
+            coolingIn1 = temperature_f1 - preferred_temp
+            
+            # Steps calculation (adjust as needed for your setup)
+            coolingSteps = [200 * (1 / (temperature_f1 - preferred_temp)), 0]
+            steps_to_takec = int(coolingSteps[0] - coolingSteps[1])
+
+            # Ensure the cooling DC motor is active
+            kit1.motor3.throttle = 0.0  # Turn off heating motor
+            await asyncio.sleep(1.0)  # Allow settling time
+            kit1.motor4.throttle = 1.0  # Activate cooling motor
+            
+            # Stepper motor cooling logic
+            if steps_to_takec != 0:
+                print(f"Taking {steps_to_takec} steps for cooling")
+                for i in range(abs(steps_to_takec)):
+                    direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
+                    kit1.stepper1.onestep(direction=direction, style=stepper.SINGLE)
+                    await asyncio.sleep(0.02)  # Adjust for motor response time
+
+            # Update cooling steps dynamically
+            coolingSteps[1] = coolingSteps[0]
+
+            # Exit the loop if temperature is close to preferred
+            if abs(temperature_f1 - preferred_temp) <= 1:
+                print("Cooling completed: Room 1")
+                kit1.motor4.throttle = 0.0  # Turn off cooling motor
+                break
+
+        # Wait before rechecking temperature
+        await asyncio.sleep(2)
 
 #Room 2 Asynced Motor Control Function
 async def Heating2():
