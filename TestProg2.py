@@ -229,17 +229,16 @@ async def Heating2():
 
 async def update_sensors():
     global temperature_f1, humidity1, temperature_f2, humidity2
-    while True:
-        try:
-            temperature_f1 = sensor1.temperature * (9 / 5) + 32
-            humidity1 = sensor1.humidity
-            temperature_f2 = sensor2.temperature * (9 / 5) + 32
-            humidity2 = sensor2.humidity
-            print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
-            print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
-        except RuntimeError as error:
-            print(f"Sensor error: {error.args[0]}")
-        await asyncio.sleep(3.0) # Delay between sensor readings
+    try:
+        temperature_f1 = sensor1.temperature * (9 / 5) + 32
+        humidity1 = sensor1.humidity
+        temperature_f2 = sensor2.temperature * (9 / 5) + 32
+        humidity2 = sensor2.humidity
+        print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
+        print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
+    except RuntimeError as error:
+        print(f"Sensor error: {error.args[0]}")
+    await asyncio.sleep(3.0) # Delay between sensor readings
 
 async def start_gui_thread():
     print("Initizaling GUI Thread")
@@ -249,39 +248,36 @@ async def start_gui_thread():
     
 async def main():
     global picked_room
+    await asyncio.create_task(update_sensors()) 
     await start_gui_thread()  # Start GUI in a separate thread
-    await asyncio.create_task(update_sensors())  # Start sensor updates
-
+    
     current_task = None  # Keep track of the currently running task
 
-    while True:
-        if picked_room == "Room 1":
-            # Cancel any ongoing task
-            if current_task and not current_task.done():
-                current_task.cancel()
-                await asyncio.sleep(0.1)  # Give time for the task to cancel
-            
-            # Start cooling task if not already running
-            if not current_task or current_task.done():
-                print("Starting cooling for Room 1")
-                current_task = asyncio.create_task(cooling1())
+    if picked_room == "Room 1":
+        # Cancel any ongoing task
+        if current_task and not current_task.done():
+            current_task.cancel()
+            await asyncio.sleep(0.1)  # Give time for the task to cancel
+        
+        # Start cooling task if not already running
+        if not current_task or current_task.done():
+            print("Starting cooling for Room 1")
+            current_task = asyncio.create_task(cooling1())
 
-        elif picked_room == "Room 2":
-            # Cancel any ongoing task
-            if current_task and not current_task.done():
-                current_task.cancel()
-                await asyncio.sleep(0.1)  # Give time for the task to cancel
+    elif picked_room == "Room 2":
+        # Cancel any ongoing task
+        if current_task and not current_task.done():
+            current_task.cancel()
+            await asyncio.sleep(0.1)  # Give time for the task to cancel
             
-            # Start heating task if not already running
-            if not current_task or current_task.done():
-                print("Starting heating for Room 2")
-                current_task = asyncio.create_task(Heating2())
+        # Start heating task if not already running
+        if not current_task or current_task.done():
+            print("Starting heating for Room 2")
+            current_task = asyncio.create_task(Heating2())
 
-        # Allow time for picked_room to update
-        await asyncio.sleep(1.0)
+    # Allow time for picked_room to update
+    await asyncio.sleep(1.0)
     
-    
-# Program Entry Point
 if __name__ == "__main__":
     try:
         asyncio.run(main())
