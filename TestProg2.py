@@ -26,8 +26,8 @@ humidity1 = 0
 temperature_f2 = 0
 humidity2 = 0
 picked_room = None
-sensor1 = adafruit_dht.DHT22(board.D12)
-sensor2 = adafruit_dht.DHT22(board.D16)
+sensor1 = adafruit_dht.DHT22(board.D17)
+sensor2 = adafruit_dht.DHT22(board.D27)
 
 #Clearing Room 1 Stepper and DC Motors
 kit1 = MotorKit(i2c=board.I2C(), address=0x60)
@@ -253,7 +253,7 @@ async def update_sensors():
         print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
     except RuntimeError as error:
         print(f"Sensor error: {error.args[0]}")
-    await asyncio.sleep(3.0) # Delay between sensor readings
+    await asyncio.sleep(0.1) # Delay between sensor readings
 
 
 
@@ -285,7 +285,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
-    finally:
         print("Performing cleanup...")
         sensor1.exit()
         sensor2.exit()
