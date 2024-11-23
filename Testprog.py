@@ -1,35 +1,49 @@
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
+from time import sleep
+import threading
+import time
 import asyncio
 import adafruit_dht
 from adafruit_motorkit import MotorKit
 import board
 import RPi.GPIO as GPIO
 import tkinter as tk
-from adafruit_motor import stepper
+
+
+relayPin1 = 5   
+relayPin2 = 6
+
+
+factory = PiGPIOFactory()
+servo = Servo(19, pin_factory=factory)
+
+servo.value = -.67
 
 preferred_temp = 0
 temperature_f1 = 0
 humidity1 = 0
 temperature_f2 = 0
 humidity2 = 0
-sensor1 = adafruit_dht.DHT22(board.D20)
-sensor2 = adafruit_dht.DHT22(board.D21)
+picked_room = None
+sensor1 = adafruit_dht.DHT22(board.D17)
+sensor2 = adafruit_dht.DHT22(board.D27)
 
 #Clearing Room 1 Stepper and DC Motors
-kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit1 = MotorKit(i2c=board.I2C(), address=0x60)
 kit1.motor3.throttle = 0.0
 kit1.motor4.throttle = 0.0
-kit1.stepper1.release()
 
 #Clearing Room 2 Stepper and DC Motors
-kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+kit2 = MotorKit(i2c=board.I2C(), address=0x61)
 kit2.motor3.throttle = 0.0
 kit2.motor4.throttle = 0.0
-kit2.stepper1.release()
 
 
 
-async def run_gui():
+def run_gui():
     global preferred_temp
+    global picked_room
     root = tk.Tk()
 
     root.geometry("500x500")
@@ -39,8 +53,14 @@ async def run_gui():
     label.pack(padx=150, pady=0)
 
     def room_1():
+        global picked_room
+        picked_room = "Room 1"
+        print(f"Picked Room: {picked_room}")
         hide_rooms(1)
     def room_2():
+        global picked_room
+        picked_room = "Room 2"
+        print(f"Picked Room: {picked_room}")
         hide_rooms(2)
 
     main_frame = tk.Frame(root)
@@ -64,6 +84,8 @@ async def run_gui():
     def go_back(room_frame):
         room_frame.pack_forget()
         main_frame.pack()
+    
+ 
 
     def rooms(room_name):
 
@@ -73,6 +95,7 @@ async def run_gui():
         room_label = tk.Label(room_frame, text=f"Information for {room_name}", font=('Sans serif', 16))
         room_label.pack(pady=10)
         
+    
         def change_button():
             button1.config(bg = 'light green')
             
@@ -153,7 +176,6 @@ async def run_gui():
             # Schedule the next update
             root.after(2000, lambda: update_room_info(room_name))
 
-# Replace this in the `rooms` function where `root.after` is used
         update_room_info(room_name)
 
             
@@ -167,7 +189,19 @@ async def run_gui():
 
     root.mainloop()
 
-#Room 1 Asynced Motor Control Function
+def set_servo_angle(angle):
+    # Map angle (0 to 180) to the servo range (-1 to 1)
+    if angle < 0:
+        angle = 0
+    if angle > 180:
+        angle = 180
+    # Map 0° -> -1, 180° -> 1
+    servo_value = (angle / 90) - 1
+    servo.value = servo_value
+
+def stop_servo():
+    servo.value = None
+    
 async def cooling1():
     global temperature_f1, preferred_temp
 
@@ -175,33 +209,20 @@ async def cooling1():
         if preferred_temp and temperature_f1 > preferred_temp:
             print("Cooling Room 1")
             coolingIn1 = temperature_f1 - preferred_temp
-            
-            coolingSteps = [200 * (1 / (temperature_f1 - preferred_temp)), 0]
-            steps_to_takec = int(coolingSteps[0] - coolingSteps[1])
-
-            await asyncio.sleep(1.0)  
-            kit1.motor4.throttle = 1.0  
-            
-            if steps_to_takec != 0:
-                print(f"Taking {steps_to_takec} steps for cooling")
-                for _ in range(abs(steps_to_takec)):
-                    direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
-                    kit1.stepper1.onestep(direction=direction, style=stepper.DOUBLE)
-                    kit1.stepper1.release()
-                    await asyncio.sleep(0.02)  # Adjust for motor response time
-
-            # Update cooling steps dynamically
-            coolingSteps[1] = coolingSteps[0]
-
+            set_servo_angle(180) 
+            sleep(2)  
+            stop_servo()        
             if abs(temperature_f1 - preferred_temp) <= 1:
                 print("Cooling completed: Room 1")
-                kit1.motor4.throttle = 0.0  # Turn off cooling motor
+                set_servo_angle(30)
+                sleep(2)  
+                stop_servo()
+                kit1.motor4.throttle = 0.0  
                 break
 
-        # Wait before rechecking temperature
         await asyncio.sleep(2)
+        
 
-#Room 2 Asynced Motor Control Function
 async def Heating2():
     global preferred_temp
     
@@ -209,46 +230,69 @@ async def Heating2():
     if temp2 is not None:
         heating = (temp2 - temperature_f2)
         while (True):
-            if(heating < 0):   
+            if(heating > 0):   
                 print("Heating")
-                kit2.motor4.throttle = 0.0
+                GPIO.output(relayPin1, GPIO.HIGH)  
+                print("Fan 1: ON")
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
                 if abs(temperature_f2 - temp2) <= 1:
+                    GPIO.output(relayPin1, GPIO.LOW)  
+                    print("Fan 2:LOW")
                     break
         kit2.motor3.throttle = 0.0
         kit2.motor4.throttle = 0.0
 
 async def update_sensors():
     global temperature_f1, humidity1, temperature_f2, humidity2
-    while True:
-        try:
-            temperature_f1 = sensor1.temperature * (9 / 5) + 32
-            humidity1 = sensor1.humidity
-            temperature_f2 = sensor2.temperature * (9 / 5) + 32
-            humidity2 = sensor2.humidity
-            print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
-            print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
-        except RuntimeError as error:
-            print(f"Sensor error: {error.args[0]}")
-        await asyncio.sleep(3)  # Delay between sensor readings
+    try:
+        temperature_f1 = sensor1.temperature * (9 / 5) + 32
+        humidity1 = sensor1.humidity
+        temperature_f2 = sensor2.temperature * (9 / 5) + 32
+        humidity2 = sensor2.humidity
+        print(f"Room 1 - Temp: {temperature_f1}°F, Humidity: {humidity1}%")
+        print(f"Room 2 - Temp: {temperature_f2}°F, Humidity: {humidity2}%")
+    except RuntimeError as error:
+        print(f"Sensor error: {error.args[0]}")
+    await asyncio.sleep(0.1) # Delay between sensor readings
 
+
+
+async def start_gui_thread():
+    print("Initizaling GUI Thread")
+    background_thread1 = threading.Thread(target = run_gui, daemon = True)
+    background_thread1.start()
+    await asyncio.sleep(0.1)
+    
 async def main():
-    # Create tasks for concurrent execution
-    task1 = asyncio.create_task(update_sensors())
-    task2 = asyncio.create_task(run_gui())
-    task3 = asyncio.create_task(cooling1())
-    task4 = asyncio.create_task(Heating2())
-    # Wait for all tasks to complete
-    await asyncio.gather(task1, task2, task3, task4)
+    global picked_room
+    current_task = None
+    await asyncio.create_task(update_sensors()) 
+    await start_gui_thread()  # Start GUI in a separate thread
 
-# Program Entry Point
+    while True:
+        if picked_room == "Room 1":
+            if current_task and not current_task.cancelled():
+                current_task.cancel()
+                await asyncio.sleep(0)  # Allow cancellation to propagate
+            print("Starting cooling for Room 1")
+            current_task = asyncio.create_task(cooling1())
+
+        elif picked_room == "Room 2":
+            if current_task and not current_task.cancelled():
+                current_task.cancel()
+                await asyncio.sleep(0)  # Allow cancellation to propagate
+            print("Starting heating for Room 2")
+            current_task = asyncio.create_task(Heating2())
+
+        await asyncio.sleep(1)  # Periodically check for updates
+
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
-    finally:
         print("Performing cleanup...")
         sensor1.exit()
         sensor2.exit()
