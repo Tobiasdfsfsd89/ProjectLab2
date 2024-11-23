@@ -1,5 +1,6 @@
-from gpiozero import AngularServo
-from time
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
+from time import sleep
 import threading
 import time
 import asyncio
@@ -8,13 +9,16 @@ from adafruit_motorkit import MotorKit
 import board
 import RPi.GPIO as GPIO
 import tkinter as tk
-from adafruit_motor import stepper
 
 
 relayPin1 = 5   
 relayPin2 = 6
 
-servo = AngularServo(18, min_pulse_width=0.0006, max_pulse_width=0.0023)
+
+factory = PiGPIOFactory()
+servo = Servo(19, pin_factory=factory)
+
+servo.value = -.67
 
 preferred_temp = 0
 temperature_f1 = 0
@@ -22,20 +26,18 @@ humidity1 = 0
 temperature_f2 = 0
 humidity2 = 0
 picked_room = None
-sensor1 = adafruit_dht.DHT22(board.D20)
-sensor2 = adafruit_dht.DHT22(board.D21)
+sensor1 = adafruit_dht.DHT22(board.D12)
+sensor2 = adafruit_dht.DHT22(board.D16)
 
 #Clearing Room 1 Stepper and DC Motors
 kit1 = MotorKit(i2c=board.I2C(), address=0x60)
 kit1.motor3.throttle = 0.0
 kit1.motor4.throttle = 0.0
-kit1.stepper1.release()
 
 #Clearing Room 2 Stepper and DC Motors
 kit2 = MotorKit(i2c=board.I2C(), address=0x61)
 kit2.motor3.throttle = 0.0
 kit2.motor4.throttle = 0.0
-kit2.stepper1.release()
 
 
 
@@ -187,6 +189,19 @@ def run_gui():
 
     root.mainloop()
 
+def set_servo_angle(angle):
+    # Map angle (0 to 180) to the servo range (-1 to 1)
+    if angle < 0:
+        angle = 0
+    if angle > 180:
+        angle = 180
+    # Map 0° -> -1, 180° -> 1
+    servo_value = (angle / 90) - 1
+    servo.value = servo_value
+
+def stop_servo():
+    servo.value = None
+    
 async def cooling1():
     global temperature_f1, preferred_temp
 
@@ -194,21 +209,17 @@ async def cooling1():
         if preferred_temp and temperature_f1 > preferred_temp:
             print("Cooling Room 1")
             coolingIn1 = temperature_f1 - preferred_temp
-
-            await asyncio.sleep(1.0)  
-            kit1.motor4.throttle = 1.0  
-            servo.angle = 90
-            asyncio.sleep(2)
-            servo.angle = 0
-            asyncio.sleep(2)
-            
+            set_servo_angle(180) 
+            sleep(2)  
+            stop_servo()        
             if abs(temperature_f1 - preferred_temp) <= 1:
                 print("Cooling completed: Room 1")
-                servo.angle = 90
-                kit1.motor4.throttle = 0.0  # Turn off cooling motor
+                set_servo_angle(30)
+                sleep(2)  
+                stop_servo()
+                kit1.motor4.throttle = 0.0  
                 break
 
-        # Wait before rechecking temperature
         await asyncio.sleep(2)
 
 async def Heating2():
@@ -243,6 +254,8 @@ async def update_sensors():
     except RuntimeError as error:
         print(f"Sensor error: {error.args[0]}")
     await asyncio.sleep(3.0) # Delay between sensor readings
+
+
 
 async def start_gui_thread():
     print("Initizaling GUI Thread")
