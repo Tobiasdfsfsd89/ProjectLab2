@@ -167,9 +167,11 @@ def run_gui():
         
         def update_room_info(room_name):
             if room_name == "Room 1":
+                asyncio.task(update_sensors)
                 temperature = temperature_f1
                 humidity = humidity1
             elif room_name == "Room 2":
+                asyncio.task(update_sensors)
                 temperature = temperature_f2
                 humidity = humidity2
         
