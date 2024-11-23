@@ -1,3 +1,5 @@
+from gpiozero import AngularServo
+from time
 import threading
 import time
 import asyncio
@@ -8,8 +10,11 @@ import RPi.GPIO as GPIO
 import tkinter as tk
 from adafruit_motor import stepper
 
+
 relayPin1 = 5   
 relayPin2 = 6
+
+servo = AngularServo(18, min_pulse_width=0.0006, max_pulse_width=0.0023)
 
 preferred_temp = 0
 temperature_f1 = 0
@@ -189,26 +194,17 @@ async def cooling1():
         if preferred_temp and temperature_f1 > preferred_temp:
             print("Cooling Room 1")
             coolingIn1 = temperature_f1 - preferred_temp
-            
-            coolingSteps = [200 * (1 / (temperature_f1 - preferred_temp)), 0]
-            steps_to_takec = int(coolingSteps[0] - coolingSteps[1])
 
             await asyncio.sleep(1.0)  
             kit1.motor4.throttle = 1.0  
+            servo.angle = 90
+            asyncio.sleep(2)
+            servo.angle = 0
+            asyncio.sleep(2)
             
-            if steps_to_takec != 0:
-                print(f"Taking {steps_to_takec} steps for cooling")
-                for _ in range(abs(steps_to_takec)):
-                    direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
-                    kit1.stepper1.onestep(direction=direction, style=stepper.DOUBLE)
-                    await asyncio.sleep(0.02)
-                kit1.stepper1.release()
-                
-            # Update cooling steps dynamically
-            coolingSteps[1] = coolingSteps[0]
-
             if abs(temperature_f1 - preferred_temp) <= 1:
                 print("Cooling completed: Room 1")
+                servo.angle = 90
                 kit1.motor4.throttle = 0.0  # Turn off cooling motor
                 break
 
@@ -229,8 +225,8 @@ async def Heating2():
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
                 if abs(temperature_f2 - temp2) <= 1:
-                    
-                    
+                    GPIO.output(relayPin1, GPIO.LOW)  
+                    print("Fan 2:LOW")
                     break
         kit2.motor3.throttle = 0.0
         kit2.motor4.throttle = 0.0
