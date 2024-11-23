@@ -8,23 +8,26 @@ import RPi.GPIO as GPIO
 import tkinter as tk
 from adafruit_motor import stepper
 
+relayPin1 = 5   
+relayPin2 = 6
+
 preferred_temp = 0
 temperature_f1 = 0
 humidity1 = 0
 temperature_f2 = 0
 humidity2 = 0
 picked_room = None
-sensor1 = adafruit_dht.DHT22(board.D23)
-sensor2 = adafruit_dht.DHT22(board.D24)
+sensor1 = adafruit_dht.DHT22(board.D20)
+sensor2 = adafruit_dht.DHT22(board.D21)
 
 #Clearing Room 1 Stepper and DC Motors
-kit1 = MotorKit(i2c=board.I2C(), address=0x61)
+kit1 = MotorKit(i2c=board.I2C(), address=0x60)
 kit1.motor3.throttle = 0.0
 kit1.motor4.throttle = 0.0
 kit1.stepper1.release()
 
 #Clearing Room 2 Stepper and DC Motors
-kit2 = MotorKit(i2c=board.I2C(), address=0x60)
+kit2 = MotorKit(i2c=board.I2C(), address=0x61)
 kit2.motor3.throttle = 0.0
 kit2.motor4.throttle = 0.0
 kit2.stepper1.release()
@@ -199,6 +202,7 @@ async def cooling1():
                     direction = stepper.BACKWARD if steps_to_takec > 0 else stepper.FORWARD
                     kit1.stepper1.onestep(direction=direction, style=stepper.DOUBLE)
                     await asyncio.sleep(0.02)
+                kit1.stepper1.release()
                 
             # Update cooling steps dynamically
             coolingSteps[1] = coolingSteps[0]
@@ -218,11 +222,15 @@ async def Heating2():
     if temp2 is not None:
         heating = (temp2 - temperature_f2)
         while (True):
-            if(heating < 0):   
+            if(heating > 0):   
                 print("Heating")
+                GPIO.output(relayPin1, GPIO.HIGH)  
+                print("Fan 1: ON")
                 await asyncio.sleep(10.0)
                 kit2.motor3.throttle = 1.0
                 if abs(temperature_f2 - temp2) <= 1:
+                    
+                    
                     break
         kit2.motor3.throttle = 0.0
         kit2.motor4.throttle = 0.0
@@ -254,12 +262,15 @@ async def main():
 
     if picked_room == "Room 1":
         print("Starting cooling for Room 1")
-        await asyncio.create_task(cooling1())
+        task1 = asyncio.create_task(cooling1())
+        await task1
 
     elif picked_room == "Room 2":
-        print("Starting cooling for Room 1")
-        await asyncio.create_task(Heating())
-    
+        print("Starting heating for Room 2")
+        task1.cancel()
+        task2 = asyncio.create_task(Heating2())
+        await task2
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
