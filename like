@@ -4,9 +4,10 @@ async def Heating2():
     temp2 = preferred_temp
     if temp2 is not None:
         heating = abs(temp2 - temperature_f2)
-        while (True):
-            if(heating > 0):   
-                print("Heating")
+        while True
+            if heating > 0:   
+                print("Heating Room 1")
+                kit1.motor2.throttle = 1.0
                 set_servo_angle(2,180)
                 sleep(2)
                 kit1.motor2.throttle = 1.0
@@ -19,3 +20,4 @@ async def Heating2():
                     sleep(2)                   
                     print("Fan 2:LOW")
                     break
+        await.asyncio.sleep(5.0)
