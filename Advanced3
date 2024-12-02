@@ -29,8 +29,8 @@ humidity1 = 0
 temperature_f2 = 0
 humidity2 = 0
 picked_room = None
-sensor1 = adafruit_dht.DHT22(board.D12)
-sensor2 = adafruit_dht.DHT22(board.D16)
+sensor1 = adafruit_dht.DHT22(board.D17)
+sensor2 = adafruit_dht.DHT22(board.D22)
 
 #Clearing Room 1 Stepper and DC Motors
 kit1 = MotorKit(i2c=board.I2C(), address=0x60)
@@ -99,18 +99,21 @@ def run_gui():
         def change_button():
             button1.config(bg = 'light green')
             kit1.motor1.throttle = 1.0
+            kit1.motor2.throttle = 1.0
             set_servo_angle("both",180)
             sleep(2)  
             stop_servo()
-            
+
         def back_to():
             if button1.cget('bg') == 'light green':
                 if button2.cget('activebackground') == 'Orange':
                     button1.config(bg = 'white')
                     kit1.motor1.throttle = 0.0
+                    kit1.motor2.throttle = 0.0
                     set_servo_angle("both", 30)
                     sleep(2)  
                     stop_servo()
+
                     
         def store_temp():
             global preferred_temp
@@ -239,7 +242,6 @@ async def cooling1():
     while True:
         if preferred_temp and temperature_f1 > preferred_temp:
             print("Cooling Room 1")
-            coolingIn1 = temperature_f1 - preferred_temp
             kit1.motor1.throttle = 1.0
             set_servo_angle(1,180)
             sleep(2)  
@@ -257,26 +259,29 @@ async def cooling1():
         
 
 async def Heating2():
-    global preferred_temp
-    
+    global preferred_temp 
     temp2 = preferred_temp
     if temp2 is not None:
         heating = abs(temp2 - temperature_f2)
-        while (True):
-            if(heating > 0):   
-                print("Heating")
+        while True:
+            if heating > 0:   
+                print("Heating Room 1")
+                kit1.motor2.throttle = 1.0
                 set_servo_angle(2,180)
                 sleep(2)
-                kit1.motor2.throttle = 1.0
+                stop_servo()
                 GPIO.output(relayPin1, GPIO.HIGH)
                 print("Fan 1: ON")
                 if abs(temperature_f2 - temp2) <= 1:
                     GPIO.output(relayPin1, GPIO.LOW)
                     kit1.motor2.throttle = 0.0
                     set_servo_angle(2,30)
+                    stop_servo()
                     sleep(2)                   
                     print("Fan 2:LOW")
                     break
+                
+            await asyncio.sleep(5.0)
 
 async def update_sensors():
     global temperature_f1, humidity1, temperature_f2, humidity2
